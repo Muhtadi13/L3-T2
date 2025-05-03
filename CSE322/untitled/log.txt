@@ -1,0 +1,12 @@
+Request : GET /SELF_RAG HTTP/1.1
+Response : HTTP/1.0 404 Not Found
+Content-Type: text/html
+
+
+
+Request : GET /SELF_RAG HTTP/1.1
+Response : HTTP/1.0 404 Not Found
+Content-Type: text/html
+
+
+

@@ -1,0 +1,911 @@
+[
+    {
+        "usecase": {
+            "name": "Collaborative Editing",
+            "scenario": "Multiple users work together on a document, leaving comments, mentions, and suggestions.",
+            "actors": "Editor, Reviewer",
+            "preconditions": "The document exists and permissions are set for collaboration.",
+            "steps": [
+                "Editor writes the content.",
+                "Reviewer leaves comments and suggestions.",
+                "Editor reviews and applies suggestions."
+            ]
+        },
+        "testcases": [
+            {
+                "name": "Commenting Feature",
+                "description": "Verify that a reviewer can successfully add a comment on a block.",
+                "input": {
+                    "blockText": "Sample paragraph",
+                    "comment": "Needs revision."
+                },
+                "expected": {
+                    "outcome": "Comment added successfully.",
+                    "status": "Comment Visible"
+                }
+            },
+            {
+                "name": "Adding Mentions",
+                "description": "Verify that a user can mention another team member in a comment.",
+                "input": {
+                    "mentionUser": "@teammate"
+                },
+                "expected": {
+                    "outcome": "Mention notification sent.",
+                    "status": "Mention Displayed"
+                }
+            },
+            {
+                "name": "Apply Suggestions",
+                "description": "Verify that the editor can apply a suggestion made by a reviewer.",
+                "input": {
+                    "suggestion": "Replace 'is' with 'was'"
+                },
+                "expected": {
+                    "outcome": "Suggestion applied successfully.",
+                    "status": "Updated"
+                }
+            }
+        ]
+    },
+    {
+        "usecase": {
+            "name": "Rich Text Formatting",
+            "scenario": "Users format their text with rich options adding links.",
+            "actors": "User",
+            "preconditions": "The text block exists in the document.",
+            "steps": [
+                "User selects the text block.",
+                "User applies the formatting options",
+                "User checks the formatted result."
+            ]
+        },
+        "testcases": [
+            {
+                "name": "Linking Text",
+                "description": "Verify that a user can add a hyperlink to selected text.",
+                "input": {
+                    "text": "Click here",
+                    "link": "http://example.com"
+                },
+                "expected": {
+                    "outcome": "Hyperlink added to text.",
+                    "status": "Link Working"
+                }
+            },
+            {
+                "name": "Invalid Markdown Syntax",
+                "description": "Verify that incorrect markdown results in failure to apply formatting.",
+                "input": {
+                    "markdown": "*incorrect_bold"
+                },
+                "expected": {
+                    "outcome": "Formatting not applied due to incorrect markdown syntax.",
+                    "status": "Error"
+                }
+            }
+        ]
+    },
+    {
+        "usecase": {
+            "name": "Organize Content into Columns",
+            "scenario": "A user arranges content side-by-side by creating multiple columns on a page.",
+            "actors": "User",
+            "preconditions": "A Notion page with content exists.",
+            "steps": [
+                "User drags and drops blocks into columns.",
+                "Content is organized into multiple columns."
+            ]
+        },
+        "testcases": [
+            {
+                "name": "Create Two Columns",
+                "description": "Verify that a user can create two columns by dragging and dropping blocks.",
+                "input": {
+                    "blocks": [
+                        "Text block 1",
+                        "Text block 2"
+                    ]
+                },
+                "expected": {
+                    "outcome": "Two columns created successfully.",
+                    "status": "Success"
+                }
+            },
+            {
+                "name": "Remove Columns",
+                "description": "Verify that a user can remove a column by dragging the content back.",
+                "input": {
+                    "blocks": [
+                        "Text block 1",
+                        "Text block 2"
+                    ]
+                },
+                "expected": {
+                    "outcome": "Columns removed successfully.",
+                    "status": "Success"
+                }
+            }
+        ]
+    },
+    {
+        "usecase": {
+            "name": "Add Headings for Structure",
+            "scenario": "The user adds headings to structure the content on a Notion page.",
+            "actors": "User",
+            "preconditions": "A Notion page with content exists.",
+            "steps": [
+                "User adds H1, H2, and H3 headings for different sections.",
+                "Content is structured with headings."
+            ]
+        },
+        "testcases": [
+            {
+                "name": "Create Heading",
+                "description": "Verify that a user can add an heading to the page.",
+                "input": {
+                    "headingText": "Main Title",
+                    "headingLevel": "H1"
+                },
+                "expected": {
+                    "outcome": "H1 heading added successfully.",
+                    "status": "Success"
+                }
+            },
+            {
+                "name": "Header Creation in Incorrect Block",
+                "description": "Verify that trying to add a header inside unsupported blocks (e.g., code blocks) fails.",
+                "input": {
+                    "blockType": "code",
+                    "header": "H1"
+                },
+                "expected": {
+                    "outcome": "Header not applied.",
+                    "status": "Error"
+                }
+            }
+        ]
+    },
+    {
+        "usecase": {
+            "name": "Insert Dividers",
+            "scenario": "A user adds dividers to separate sections on a Notion page.",
+            "actors": "User",
+            "preconditions": "A Notion page with content exists.",
+            "steps": [
+                "User adds a divider between sections.",
+                "Sections are visually separated by the divider."
+            ]
+        },
+        "testcases": [
+            {
+                "name": "Add Divider",
+                "description": "Verify that a user can insert a divider between two sections.",
+                "input": {
+                    "dividerPosition": "Between sections"
+                },
+                "expected": {
+                    "outcome": "Divider added successfully.",
+                    "status": "Success"
+                }
+            }
+        ]
+    },
+    {
+        "usecase": {
+            "name": "Text Styling and Formatting",
+            "scenario": "A user customizes text with different fonts, sizes, colors, and highlights.",
+            "actors": "User",
+            "preconditions": "A Notion page with editable text exists.",
+            "steps": [
+                "User highlights text.",
+                "User applies styling options such as bold, italic, or color from the toolbar."
+            ]
+        },
+        "testcases": [
+            {
+                "name": "Bold Text",
+                "description": "Verify that a user can apply bold styling to selected text.",
+                "input": {
+                    "text": "Sample text",
+                    "style": "Bold"
+                },
+                "expected": {
+                    "outcome": "Text is bold.",
+                    "status": "Success"
+                }
+            },
+            {
+                "name": "Change font",
+                "description": "Verify that a user can change font of selected text.",
+                "input": {
+                    "text": "Sample text",
+                    "style": "Font-sherif"
+                },
+                "expected": {
+                    "outcome": "Sherif font applied",
+                    "status": "Success"
+                }
+            },
+            {
+                "name": "Apply Color",
+                "description": "Verify that a user can apply a color to the text.",
+                "input": {
+                    "text": "Sample text",
+                    "color": "Red"
+                },
+                "expected": {
+                    "outcome": "Text appears in the chosen color.",
+                    "status": "Success"
+                }
+            }
+        ]
+    },
+    {
+        "usecase": {
+            "name": "Add Icons and Cover Art",
+            "scenario": "A user personalizes a page by adding icons and cover images.",
+            "actors": "User",
+            "preconditions": "A Notion page exists.",
+            "steps": [
+                "User adds or changes the page icon.",
+                "User adds or changes the cover image."
+            ]
+        },
+        "testcases": [
+            {
+                "name": "Add Page Icon",
+                "description": "Verify that a user can successfully add an icon to a page.",
+                "input": {
+                    "icon": "Emoji"
+                },
+                "expected": {
+                    "outcome": "Icon is added to the page.",
+                    "status": "Success"
+                }
+            },
+            {
+                "name": "Change Cover Image",
+                "description": "Verify that a user can successfully change the cover image on a page.",
+                "input": {
+                    "coverImage": "Uploaded Image"
+                },
+                "expected": {
+                    "outcome": "Cover image is updated.",
+                    "status": "Success"
+                }
+            }
+        ]
+    },
+    {
+        "usecase": {
+            "name": "Add and Manage Images",
+            "scenario": "A user uploads images, arranges them on a page, and resizes them as needed.",
+            "actors": "User",
+            "preconditions": "A Notion page is open and ready for editing.",
+            "steps": [
+                "User uploads an image to the page.",
+                "User arranges and resizes the image.",
+                "User adds captions and alt text for the image."
+            ]
+        },
+        "testcases": [
+            {
+                "name": "Upload Image",
+                "description": "Verify that a user can successfully upload an image to a page.",
+                "input": {
+                    "imageFile": "sample.jpg"
+                },
+                "expected": {
+                    "outcome": "Image uploaded successfully.",
+                    "status": "Success"
+                }
+            },
+            {
+                "name": "Resize Image",
+                "description": "Verify that a user can resize an uploaded image.",
+                "input": {
+                    "imageFile": "sample.jpg",
+                    "resizeDimensions": "50%"
+                },
+                "expected": {
+                    "outcome": "Image resized successfully.",
+                    "status": "Success"
+                }
+            }
+        ]
+    },
+    {
+        "usecase": {
+            "name": "Add and Embed Files",
+            "scenario": "A user uploads or embeds files like PDFs or documents into a Notion page.",
+            "actors": "User",
+            "preconditions": "A Notion page is ready for file uploads.",
+            "steps": [
+                "User uploads a PDF file to the page.",
+                "User embeds a file link from an external source.",
+                "User arranges the file block on the page."
+            ]
+        },
+        "testcases": [
+            {
+                "name": "Upload PDF File",
+                "description": "Verify that a user can upload a PDF file to the page.",
+                "input": {
+                    "file": "document.pdf"
+                },
+                "expected": {
+                    "outcome": "PDF file uploaded successfully.",
+                    "status": "Success"
+                }
+            },
+            {
+                "name": "Embed External File",
+                "description": "Verify that a user can embed a file link from an external URL.",
+                "input": {
+                    "fileLink": "https://example.com/document.pdf"
+                },
+                "expected": {
+                    "outcome": "File embedded successfully.",
+                    "status": "Success"
+                }
+            }
+        ]
+    },
+    {
+        "usecase": {
+            "name": "Embed and Manage Media",
+            "scenario": "A user embeds videos and audio files into a Notion page.",
+            "actors": "User",
+            "preconditions": "A Notion page is open for editing.",
+            "steps": [
+                "User embeds a video from a streaming service.",
+                "User uploads an audio file.",
+                "User resizes and aligns the media blocks."
+            ]
+        },
+        "testcases": [
+            {
+                "name": "Embed Video",
+                "description": "Verify that a user can embed a video from a streaming platform.",
+                "input": {
+                    "videoURL": "https://www.youtube.com/watch?v=example"
+                },
+                "expected": {
+                    "outcome": "Video embedded successfully.",
+                    "status": "Success"
+                }
+            },
+            {
+                "name": "Upload Audio File",
+                "description": "Verify that a user can upload an audio file and play it in Notion.",
+                "input": {
+                    "audioFile": "audio.mp3"
+                },
+                "expected": {
+                    "outcome": "Audio file uploaded and playable.",
+                    "status": "Success"
+                }
+            },
+            {
+                "name": "Unsupported Media Format",
+                "description": "Verify that unsupported audio or video formats fail to play.",
+                "input": {
+                    "mediaType": "video",
+                    "format": "unsupportedFormat"
+                },
+                "expected": {
+                    "outcome": "Playback fails, with a message indicating unsupported format.",
+                    "status": "Error"
+                }
+            },
+            {
+                "name": "Exceeds File Size Limit",
+                "description": "Verify that uploading a file that exceeds the size limit fails.",
+                "input": {
+                    "mediaType": "image",
+                    "fileSize": "100GB"
+                },
+                "expected": {
+                    "outcome": "Upload fails with a message about exceeding the file size limit.",
+                    "status": "Error"
+                }
+            }
+        ]
+    },
+    {
+        "usecase": {
+            "name": "Link to Notion Page",
+            "scenario": "A user links one Notion page to another within a paragraph or as a block.",
+            "actors": "User",
+            "preconditions": "Both Notion pages exist and are accessible.",
+            "steps": [
+                "User types '@', '[[' or '+' followed by the page name.",
+                "User selects the page from the dropdown.",
+                "Link is added in the desired format."
+            ]
+        },
+        "testcases": [
+            {
+                "name": "Link Page in Paragraph",
+                "description": "Verify that a user can link another Notion page inline within a paragraph.",
+                "input": {
+                    "linkCommand": "@",
+                    "pageName": "Project Overview"
+                },
+                "expected": {
+                    "outcome": "Page linked successfully.",
+                    "status": "Link visible in paragraph."
+                }
+            },
+            {
+                "name": "Link Page as Block",
+                "description": "Verify that a user can add a Notion page link as a block.",
+                "input": {
+                    "linkCommand": "/link",
+                    "pageName": "Meeting Notes"
+                },
+                "expected": {
+                    "outcome": "Page link block created successfully.",
+                    "status": "Link block visible."
+                }
+            },
+            {
+                "name": "Broken Link Creation",
+                "description": "Verify that trying to create a link to a deleted or non-existent page results in an error.",
+                "input": {
+                    "linkDestination": "DeletedPage"
+                },
+                "expected": {
+                    "outcome": "Link creation fails with an error about the destination page not existing.",
+                    "status": "Error"
+                }
+            }
+        ]
+    },
+    {
+        "usecase": {
+            "name": "Link to a Web Page",
+            "scenario": "A user pastes a URL into Notion and formats it as a mention for easier readability.",
+            "actors": "User",
+            "preconditions": "A web page link is copied.",
+            "steps": [
+                "User pastes the URL into a Notion page.",
+                "User selects 'Paste as mention' to format the link."
+            ]
+        },
+        "testcases": [
+            {
+                "name": "Embed Web Link",
+                "description": "Verify that a user can embed a web link and format it as a mention.",
+                "input": {
+                    "webURL": "https://example.com"
+                },
+                "expected": {
+                    "outcome": "Web link embedded as a mention.",
+                    "status": "Link mention formatted."
+                }
+            }
+        ]
+    },
+    {
+        "usecase": {
+            "name": "View Backlinks",
+            "scenario": "A user navigates through backlinks to see which pages link to the current page.",
+            "actors": "User",
+            "preconditions": "Backlinks exist for the page.",
+            "steps": [
+                "User clicks the 'backlinks' section at the top of the page.",
+                "User reviews all linked pages."
+            ]
+        },
+        "testcases": [
+            {
+                "name": "View Backlinks",
+                "description": "Verify that a user can view all backlinks to the current page.",
+                "input": {
+                    "pageName": "Research Notes"
+                },
+                "expected": {
+                    "outcome": "Backlinks displayed successfully.",
+                    "status": "List of linked pages visible."
+                }
+            }
+        ]
+    },
+    {
+        "usecase": {
+            "name": "Create and Manage Wikis",
+            "scenario": "A user turns a page into a wiki to organize team knowledge centrally.",
+            "actors": "User",
+            "preconditions": "A Notion page exists.",
+            "steps": [
+                "User navigates to the page.",
+                "User turns the page into a wiki using the page menu."
+            ]
+        },
+        "testcases": [
+            {
+                "name": "Create Wiki",
+                "description": "Verify that a user can turn a page into a wiki.",
+                "input": {
+                    "page": "Team Handbook"
+                },
+                "expected": {
+                    "outcome": "Page turned into a wiki.",
+                    "status": "Success"
+                }
+            }
+        ]
+    },
+    {
+        "usecase": {
+            "name": "Verify Pages",
+            "scenario": "A user verifies pages to indicate accuracy and relevance.",
+            "actors": "Page Owner",
+            "preconditions": "The page is part of a wiki and the user is the owner.",
+            "steps": [
+                "User selects the 'Verify' option from the page menu.",
+                "User chooses whether to verify indefinitely or for a specific date."
+            ]
+        },
+        "testcases": [
+            {
+                "name": "Verify Page",
+                "description": "Verify that the page owner can successfully verify a page.",
+                "input": {
+                    "page": "Product Guidelines"
+                },
+                "expected": {
+                    "outcome": "Page marked as verified.",
+                    "status": "Verified"
+                }
+            }
+        ]
+    },
+    {
+        "usecase": {
+            "name": "Transfer Content to Another Account",
+            "scenario": "A user transfers ownership of content (pages, databases) from one Notion account to another.",
+            "actors": "User, New Account Owner",
+            "preconditions": "Both Notion accounts exist.",
+            "steps": [
+                "User shares the page with the new account.",
+                "User grants ownership permissions to the new account."
+            ]
+        },
+        "testcases": [
+            {
+                "name": "Transfer Page Ownership",
+                "description": "Verify that a user can transfer ownership of a page to another account.",
+                "input": {
+                    "pageName": "Project Plan",
+                    "newOwner": "userB@example.com"
+                },
+                "expected": {
+                    "outcome": "Ownership successfully transferred.",
+                    "status": "Success"
+                }
+            },
+            {
+                "name": "Transfer Between Incompatible Accounts",
+                "description": "Verify that transferring content between a free plan and a paid account fails if file size limits are exceeded.",
+                "input": {
+                    "accountTypeSource": "Paid",
+                    "accountTypeDestination": "Free",
+                    "fileSize": "10GB"
+                },
+                "expected": {
+                    "outcome": "Transfer fails with a file size limit error.",
+                    "status": "Error"
+                }
+            }
+        ]
+    },
+    {
+        "usecase": {
+            "name": "Duplicate and Delete Content",
+            "scenario": "A user duplicates or deletes content on a Notion page.",
+            "actors": "User",
+            "preconditions": "A Notion page exists with content.",
+            "steps": [
+                "User selects a block of content.",
+                "User chooses either 'Duplicate' or 'Delete' from the menu."
+            ]
+        },
+        "testcases": [
+            {
+                "name": "Duplicate Block",
+                "description": "Verify that a user can duplicate a block of content.",
+                "input": {
+                    "blockContent": "Meeting Notes"
+                },
+                "expected": {
+                    "outcome": "Block successfully duplicated.",
+                    "status": "Success"
+                }
+            },
+            {
+                "name": "Delete Page",
+                "description": "Verify that a user can delete an entire page.",
+                "input": {
+                    "pageName": "Old Notes"
+                },
+                "expected": {
+                    "outcome": "Page successfully deleted.",
+                    "status": "Moved to Trash"
+                }
+            }
+        ]
+    },
+    {
+        "usecase": {
+            "name": "Restore Deleted Content",
+            "scenario": "A user restores deleted content from the trash within 30 days.",
+            "actors": "User",
+            "preconditions": "The content is in the trash and within the restoration window.",
+            "steps": [
+                "User navigates to the trash.",
+                "User selects the deleted page to restore."
+            ]
+        },
+        "testcases": [
+            {
+                "name": "Restore Deleted Page",
+                "description": "Verify that a user can restore a deleted page from the trash.",
+                "input": {
+                    "pageName": "Archived Project"
+                },
+                "expected": {
+                    "outcome": "Page successfully restored.",
+                    "status": "Restored"
+                }
+            },
+            {
+                "name": "Restore Deleted Page After Timeout",
+                "description": "Verify that restoring a deleted page fails after the allowed restoration time has passed.",
+                "input": {
+                    "deletedTime": "31Days"
+                },
+                "expected": {
+                    "outcome": "Restore fails due to exceeded restoration period.",
+                    "status": "Error"
+                }
+            }
+        ]
+    },
+    {
+        "usecase": {
+            "name": "Sync Content Across Pages",
+            "scenario": "A user syncs content across multiple Notion pages.",
+            "actors": "User",
+            "preconditions": "Pages must exist, and user must have edit permissions.",
+            "steps": [
+                "User copies the content from a page.",
+                "User pastes it on a different page with the 'Paste and sync' option.",
+                "Content is now synced across pages."
+            ]
+        },
+        "testcases": [
+            {
+                "name": "Sync Content Successfully",
+                "description": "Verify that the user can sync content across two pages.",
+                "input": {
+                    "page1": "Project Overview",
+                    "page2": "Meeting Notes"
+                },
+                "expected": {
+                    "outcome": "Content successfully synced.",
+                    "status": "Success"
+                }
+            },
+            {
+                "name": "Sync Content Failure - No Permissions",
+                "description": "Verify that a user cannot sync content to a page where they don't have permission.",
+                "input": {
+                    "page1": "Team Wiki",
+                    "page2": "Private Notes"
+                },
+                "expected": {
+                    "outcome": "Sync failed due to insufficient permissions.",
+                    "status": "Failure"
+                }
+            }
+        ]
+    },
+    {
+        "usecase": {
+            "name": "Unsync Content",
+            "scenario": "A user unsyncs specific content across pages.",
+            "actors": "User",
+            "preconditions": "Synced blocks exist across multiple pages.",
+            "steps": [
+                "User selects the synced block.",
+                "User chooses the 'Unsync' option to remove the sync."
+            ]
+        },
+        "testcases": [
+            {
+                "name": "Unsync Specific Block",
+                "description": "Verify that a user can unsync a specific copy of the block.",
+                "input": {
+                    "block": "Task List"
+                },
+                "expected": {
+                    "outcome": "Block unsynced from other copies.",
+                    "status": "Success"
+                }
+            },
+            {
+                "name": "Unsync Failure - Not Original Block",
+                "description": "Verify that unsyncing fails when attempting to unsync a block that is not the original.",
+                "input": {
+                    "block": "Meeting Agenda"
+                },
+                "expected": {
+                    "outcome": "Unable to unsync non-original block.",
+                    "status": "Failure"
+                }
+            }
+        ]
+    },
+    {
+        "usecase": {
+            "name": "Create and Edit Code Blocks",
+            "scenario": "User creates and edits code blocks within Notion for documentation or sharing code snippets.",
+            "actors": "User",
+            "preconditions": "User is logged into Notion and has access to a workspace or page.",
+            "steps": [
+                "User navigates to a Notion page and selects the option to add a new block.",
+                "User selects the code block option from the available block types.",
+                "User types or pastes code into the code block.",
+                "User modifies the code block by selecting the language, formatting, or editing the code."
+            ]
+        },
+        "testcases": [
+            {
+                "name": "Valid Code Block Creation",
+                "description": "Verify that a user can successfully create a code block and input code.",
+                "input": {
+                    "blockType": "Code Block",
+                    "code": "print('Hello World')"
+                },
+                "expected": {
+                    "outcome": "Code block created successfully",
+                    "status": "Created"
+                }
+            },
+            {
+                "name": "Language Selection",
+                "description": "Verify that a user can select a programming language for a code block.",
+                "input": {
+                    "code": "def add(a, b): return a + b",
+                    "language": "Python"
+                },
+                "expected": {
+                    "outcome": "Language set to Python",
+                    "status": "Success"
+                }
+            },
+            {
+                "name": "Empty Code Block",
+                "description": "Verify that the system handles an empty code block without any code input.",
+                "input": {
+                    "blockType": "Code Block",
+                    "code": ""
+                },
+                "expected": {
+                    "outcome": "Code block creation failed",
+                    "status": "Rejected"
+                }
+            },
+            {
+                "name": "Edit Existing Code Block",
+                "description": "Verify that a user can successfully edit an existing code block.",
+                "input": {
+                    "blockID": "123",
+                    "newCode": "print('Updated Code')"
+                },
+                "expected": {
+                    "outcome": "Code block updated successfully",
+                    "status": "Edited"
+                }
+            }
+        ]
+    },
+    {
+        "usecase": {
+            "name": "Create and Display Math Equations in Notion",
+            "scenario": "A user creates and formats math equations in Notion using LaTeX syntax.",
+            "actors": "User",
+            "preconditions": "The user must have access to a Notion page.",
+            "steps": [
+                "User types an equation using the inline math command `$$` or the block equation command `/math`.",
+                "The system processes the LaTeX syntax.",
+                "The system displays the equation in the correct format."
+            ]
+        },
+        "testcases": [
+            {
+                "name": "Valid Inline Equation",
+                "description": "Verify that a valid inline math equation is rendered correctly.",
+                "input": {
+                    "equation": "$$a^2 + b^2 = c^2$$"
+                },
+                "expected": {
+                    "outcome": "Equation rendered correctly",
+                    "status": "Success"
+                }
+            },
+            {
+                "name": "Invalid Inline Equation",
+                "description": "Verify that the system handles improper LaTeX syntax in inline equations.",
+                "input": {
+                    "equation": "$$a^2 + b^$$"
+                },
+                "expected": {
+                    "outcome": "Equation rendering failed due to improper syntax",
+                    "status": "Error"
+                }
+            },
+            {
+                "name": "Valid Block Equation",
+                "description": "Verify that a block equation is correctly rendered in Notion.",
+                "input": {
+                    "equation": "/math \\sqrt{9}"
+                },
+                "expected": {
+                    "outcome": "Block equation rendered correctly",
+                    "status": "Success"
+                }
+            },
+            {
+                "name": "Invalid Block Equation",
+                "description": "Verify that the system handles incorrect LaTeX syntax in block equations.",
+                "input": {
+                    "equation": "/math \\squr{9}"
+                },
+                "expected": {
+                    "outcome": "Block equation rendering failed due to unrecognized command",
+                    "status": "Error"
+                }
+            }
+        ]
+    },
+    {
+        "usecase": {
+            "name": "Fractions and Advanced Equations",
+            "scenario": "A user creates more complex equations, such as fractions and square roots.",
+            "actors": "User",
+            "preconditions": "The user must have access to a Notion page.",
+            "steps": [
+                "User types a complex equation using LaTeX syntax for fractions or square roots.",
+                "The system interprets and formats the input."
+            ]
+        },
+        "testcases": [
+            {
+                "name": "Valid Fraction",
+                "description": "Verify that a fraction is correctly rendered.",
+                "input": {
+                    "equation": "$$\\frac{1}{2}$$"
+                },
+                "expected": {
+                    "outcome": "Fraction rendered correctly",
+                    "status": "Success"
+                }
+            },
+            {
+                "name": "Invalid Fraction",
+                "description": "Verify that the system handles missing elements in a fraction.",
+                "input": {
+                    "equation": "$$\\frac{1}{}$$"
+                },
+                "expected": {
+                    "outcome": "Fraction rendering failed due to missing elements",
+                    "status": "Error"
+                }
+            }
+        ]
+    }
+]
