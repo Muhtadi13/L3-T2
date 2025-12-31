@@ -1,0 +1,871 @@
+diff --git a/.vscode/settings.json b/.vscode/settings.json
+new file mode 100644
+index 0000000..20ee7e6
+--- /dev/null
++++ b/.vscode/settings.json
+@@ -0,0 +1,8 @@
++{
++    "files.associations": {
++        "types.h": "c",
++        "syscall.h": "c",
++        "user.h": "c",
++        "stat.h": "c"
++    }
++}
+\ No newline at end of file
+diff --git a/Makefile b/Makefile
+index 62fd0f8..c4dae69 100644
+--- a/Makefile
++++ b/Makefile
+@@ -139,6 +139,8 @@ UPROGS=\
+ 	$U/_grind\
+ 	$U/_wc\
+ 	$U/_zombie\
++	$U/_trace\
++	$U/_load\
+ 
+ fs.img: mkfs/mkfs README $(UPROGS)
+ 	mkfs/mkfs fs.img README $(UPROGS)
+diff --git a/kernel/param.h b/kernel/param.h
+index 6624bff..684ad4c 100644
+--- a/kernel/param.h
++++ b/kernel/param.h
+@@ -1,13 +1,15 @@
+-#define NPROC        64  // maximum number of processes
+-#define NCPU          8  // maximum number of CPUs
+-#define NOFILE       16  // open files per process
+-#define NFILE       100  // open files per system
+-#define NINODE       50  // maximum number of active i-nodes
+-#define NDEV         10  // maximum major device number
+-#define ROOTDEV       1  // device number of file system root disk
+-#define MAXARG       32  // max exec arguments
+-#define MAXOPBLOCKS  10  // max # of blocks any FS op writes
+-#define LOGSIZE      (MAXOPBLOCKS*3)  // max data blocks in on-disk log
+-#define NBUF         (MAXOPBLOCKS*3)  // size of disk block cache
+-#define FSSIZE       2000  // size of file system in blocks
+-#define MAXPATH      128   // maximum file path name
++#define NPROC 64                  // maximum number of processes
++#define NCPU 8                    // maximum number of CPUs
++#define NOFILE 16                 // open files per process
++#define NFILE 100                 // open files per system
++#define NINODE 50                 // maximum number of active i-nodes
++#define NDEV 10                   // maximum major device number
++#define ROOTDEV 1                 // device number of file system root disk
++#define MAXARG 32                 // max exec arguments
++#define MAXOPBLOCKS 10            // max # of blocks any FS op writes
++#define LOGSIZE (MAXOPBLOCKS * 3) // max data blocks in on-disk log
++#define NBUF (MAXOPBLOCKS * 3)    // size of disk block cache
++#define FSSIZE 2000               // size of file system in blocks
++#define MAXPATH 128               // maximum file path name
++#define MAX_COMMAND_LEN 128 // maximum length of a command
++#define MAX_PREV_COMS 20 // maximim count of previous commands to store
+diff --git a/kernel/proc.c b/kernel/proc.c
+index 58a8a0b..8ad09e3 100644
+--- a/kernel/proc.c
++++ b/kernel/proc.c
+@@ -29,6 +29,17 @@ struct spinlock wait_lock;
+ // Allocate a page for each process's kernel stack.
+ // Map it high in memory, followed by an invalid
+ // guard page.
++
++struct spinlock cmd_lock;
++//command string space ta lock korlam
++char *nothing="-1";
++//default for kono previous command na thakle
++char last_user_command[MAX_COMMAND_LEN];
++// ekhane last command ta save korbo . pore onek command save korte array nite hobe.
++char all_prev_comms[MAX_PREV_COMS][MAX_COMMAND_LEN];
++int cnt;
++int last;
++
+ void
+ proc_mapstacks(pagetable_t kpgtbl)
+ {
+@@ -51,6 +62,23 @@ procinit(void)
+   
+   initlock(&pid_lock, "nextpid");
+   initlock(&wait_lock, "wait_lock");
++
++
++  initlock(&cmd_lock,"cmd_lock");
++  acquire(&cmd_lock);
++  safestrcpy(last_user_command,nothing,3);
++  cnt=0;
++  last=0;
++  release(&cmd_lock);
++  
++  for(int i=0;i<MAX_PREV_COMS;i++){
++    acquire(&cmd_lock);
++    safestrcpy(all_prev_comms[cnt],nothing,3);
++    release(&cmd_lock);
++  }
++  
++
++
+   for(p = proc; p < &proc[NPROC]; p++) {
+       initlock(&p->lock, "proc");
+       p->state = UNUSED;
+@@ -122,6 +150,7 @@ allocproc(void)
+   return 0;
+ 
+ found:
++
+   p->pid = allocpid();
+   p->state = USED;
+ 
+@@ -145,6 +174,7 @@ found:
+   memset(&p->context, 0, sizeof(p->context));
+   p->context.ra = (uint64)forkret;
+   p->context.sp = p->kstack + PGSIZE;
++  p->istraced=-1;
+ 
+   return p;
+ }
+@@ -169,6 +199,7 @@ freeproc(struct proc *p)
+   p->killed = 0;
+   p->xstate = 0;
+   p->state = UNUSED;
++  p->istraced=-1;
+ }
+ 
+ // Create a user page table for a given process, with no user memory,
+@@ -686,3 +717,111 @@ procdump(void)
+     printf("\n");
+   }
+ }
++
++
++uint64
++sys_info(void)
++{
++  struct procInfo pInfo;
++  struct proc *pp;
++  uint64 addresstocopyin;
++
++  argaddr(0,&addresstocopyin);
++
++  pInfo.totalMemSize=PHYSTOP-KERNBASE;
++  pInfo.activeProcess=0;
++  pInfo.memsize=0;
++  pInfo.totalProcess=NPROC;
++  
++  for(pp = proc ; pp < &proc[NPROC]; pp++)
++  {
++    acquire(&pp->lock);
++    if(pp->state==RUNNING || pp->state==RUNNABLE || pp->state==SLEEPING){
++      pInfo.activeProcess++;
++      // pInfo.totalProcess++
++      pInfo.memsize+=pp->sz;
++    }
++    release(&pp->lock);
++  }
++  // printf("\n..............%d %d %d %d .........\n",pInfo.totalMemSize,pInfo.activeProcess,pInfo.memsize,pInfo.totalProcess);
++  copyout(myproc()->pagetable,addresstocopyin,(char *)&pInfo,sizeof(pInfo));
++  return 0;
++}
++
++uint64
++sys_set_last_user_command(void)
++{
++  char current_command[MAX_COMMAND_LEN];
++  argstr(0,current_command,MAX_COMMAND_LEN);
++
++  // printf("inininnin\n");
++  // printf("%s",current_command);
++
++  acquire(&cmd_lock); //ei point er por load store critical
++  safestrcpy(last_user_command,current_command,sizeof(current_command));
++  release(&cmd_lock);
++
++  return 0;
++}
++
++uint64
++sys_get_last_user_command(void)
++{
++  uint64 address_from_user;
++  argaddr(0,&address_from_user);
++  
++  acquire(&cmd_lock);
++  if(strncmp(last_user_command,nothing,3)==0 || copyout(myproc()->pagetable,address_from_user,last_user_command,sizeof(last_user_command))<0){
++    // printf("%s papapapnnnnniiiiiiccccc\n",last_user_command);
++    release(&cmd_lock);
++    return -1;
++  }
++  release(&cmd_lock);
++
++  return 0;
++}
++
++uint64
++sys_set_last_ith_user_command(void)
++{
++  char current_command[MAX_COMMAND_LEN];
++  argstr(0,current_command,MAX_COMMAND_LEN);
++  // printf("inininnin\n");
++  // printf("%s",current_command);
++  acquire(&cmd_lock); //ei point er por load store critical
++  safestrcpy(all_prev_comms[last],current_command,sizeof(current_command));
++  last++;
++  cnt++;
++  if(cnt>MAX_PREV_COMS) cnt=MAX_PREV_COMS;
++  if(last>=MAX_PREV_COMS) last=0; 
++  release(&cmd_lock);
++
++  return 0;
++}
++
++uint64
++sys_get_last_ith_user_command(void)
++{
++  uint64 address_from_user;
++  int index;
++  argaddr(0,&address_from_user);
++  argint(1,&index);
++
++  acquire(&cmd_lock);
++  if(cnt<index){
++    // printf("%s papapapnnnnniiiiiiccccc\n",last_user_command);
++    release(&cmd_lock);
++    return -1;
++  }
++  index=last-index;
++  if(index<0){
++    index=index+MAX_PREV_COMS;
++  }
++
++  if(copyout(myproc()->pagetable,address_from_user,all_prev_comms[index],sizeof(last_user_command))<0){
++    release(&cmd_lock);
++    return -1;
++  }
++  release(&cmd_lock);
++  return 0;
++}
+diff --git a/kernel/proc.h b/kernel/proc.h
+index d021857..4b15c81 100644
+--- a/kernel/proc.h
++++ b/kernel/proc.h
+@@ -104,4 +104,6 @@ struct proc {
+   struct file *ofile[NOFILE];  // Open files
+   struct inode *cwd;           // Current directory
+   char name[16];               // Process name (debugging)
++  int istraced;                // sob process er moddhei kon call ta trace kora hocche ota jabe . redundant but has to be done
++
+ };
+diff --git a/kernel/syscall.c b/kernel/syscall.c
+index ed65409..54e9970 100644
+--- a/kernel/syscall.c
++++ b/kernel/syscall.c
+@@ -8,24 +8,22 @@
+ #include "defs.h"
+ 
+ // Fetch the uint64 at addr from the current process.
+-int
+-fetchaddr(uint64 addr, uint64 *ip)
++int fetchaddr(uint64 addr, uint64 *ip)
+ {
+   struct proc *p = myproc();
+-  if(addr >= p->sz || addr+sizeof(uint64) > p->sz) // both tests needed, in case of overflow
++  if (addr >= p->sz || addr + sizeof(uint64) > p->sz) // both tests needed, in case of overflow
+     return -1;
+-  if(copyin(p->pagetable, (char *)ip, addr, sizeof(*ip)) != 0)
++  if (copyin(p->pagetable, (char *)ip, addr, sizeof(*ip)) != 0)
+     return -1;
+   return 0;
+ }
+ 
+ // Fetch the nul-terminated string at addr from the current process.
+ // Returns length of string, not including nul, or -1 for error.
+-int
+-fetchstr(uint64 addr, char *buf, int max)
++int fetchstr(uint64 addr, char *buf, int max)
+ {
+   struct proc *p = myproc();
+-  if(copyinstr(p->pagetable, buf, addr, max) < 0)
++  if (copyinstr(p->pagetable, buf, addr, max) < 0)
+     return -1;
+   return strlen(buf);
+ }
+@@ -34,7 +32,8 @@ static uint64
+ argraw(int n)
+ {
+   struct proc *p = myproc();
+-  switch (n) {
++  switch (n)
++  {
+   case 0:
+     return p->trapframe->a0;
+   case 1:
+@@ -53,8 +52,7 @@ argraw(int n)
+ }
+ 
+ // Fetch the nth 32-bit system call argument.
+-void
+-argint(int n, int *ip)
++void argint(int n, int *ip)
+ {
+   *ip = argraw(n);
+ }
+@@ -62,8 +60,7 @@ argint(int n, int *ip)
+ // Retrieve an argument as a pointer.
+ // Doesn't check for legality, since
+ // copyin/copyout will do that.
+-void
+-argaddr(int n, uint64 *ip)
++void argaddr(int n, uint64 *ip)
+ {
+   *ip = argraw(n);
+ }
+@@ -71,8 +68,7 @@ argaddr(int n, uint64 *ip)
+ // Fetch the nth word-sized system call argument as a null-terminated string.
+ // Copies into buf, at most max.
+ // Returns string length if OK (including nul), -1 if error.
+-int
+-argstr(int n, char *buf, int max)
++int argstr(int n, char *buf, int max)
+ {
+   uint64 addr;
+   argaddr(n, &addr);
+@@ -101,47 +97,244 @@ extern uint64 sys_unlink(void);
+ extern uint64 sys_link(void);
+ extern uint64 sys_mkdir(void);
+ extern uint64 sys_close(void);
++extern uint64 sys_trace(void);
++extern uint64 sys_info(void);
++extern uint64 sys_get_last_user_command(void);
++extern uint64 sys_set_last_user_command(void);
++extern uint64 sys_set_last_ith_user_command(void);
++extern uint64 sys_get_last_ith_user_command(void);
+ 
+ // An array mapping syscall numbers from syscall.h
+ // to the function that handles the system call.
+ static uint64 (*syscalls[])(void) = {
+-[SYS_fork]    sys_fork,
+-[SYS_exit]    sys_exit,
+-[SYS_wait]    sys_wait,
+-[SYS_pipe]    sys_pipe,
+-[SYS_read]    sys_read,
+-[SYS_kill]    sys_kill,
+-[SYS_exec]    sys_exec,
+-[SYS_fstat]   sys_fstat,
+-[SYS_chdir]   sys_chdir,
+-[SYS_dup]     sys_dup,
+-[SYS_getpid]  sys_getpid,
+-[SYS_sbrk]    sys_sbrk,
+-[SYS_sleep]   sys_sleep,
+-[SYS_uptime]  sys_uptime,
+-[SYS_open]    sys_open,
+-[SYS_write]   sys_write,
+-[SYS_mknod]   sys_mknod,
+-[SYS_unlink]  sys_unlink,
+-[SYS_link]    sys_link,
+-[SYS_mkdir]   sys_mkdir,
+-[SYS_close]   sys_close,
++    [SYS_fork] sys_fork,
++    [SYS_exit] sys_exit,
++    [SYS_wait] sys_wait,
++    [SYS_pipe] sys_pipe,
++    [SYS_read] sys_read,
++    [SYS_kill] sys_kill,
++    [SYS_exec] sys_exec,
++    [SYS_fstat] sys_fstat,
++    [SYS_chdir] sys_chdir,
++    [SYS_dup] sys_dup,
++    [SYS_getpid] sys_getpid,
++    [SYS_sbrk] sys_sbrk,
++    [SYS_sleep] sys_sleep,
++    [SYS_uptime] sys_uptime,
++    [SYS_open] sys_open,
++    [SYS_write] sys_write,
++    [SYS_mknod] sys_mknod,
++    [SYS_unlink] sys_unlink,
++    [SYS_link] sys_link,
++    [SYS_mkdir] sys_mkdir,
++    [SYS_close] sys_close,
++    [SYS_trace] sys_trace,
++    [SYS_info] sys_info,
++    [SYS_set_last_user_command] sys_set_last_user_command,
++    [SYS_get_last_user_command] sys_get_last_user_command,
++    [SYS_get_last_ith_user_command] sys_get_last_ith_user_command,
++    [SYS_set_last_ith_user_command] sys_set_last_ith_user_command,
++    
+ };
+ 
+-void
+-syscall(void)
++static char *syscall_functions[]={
++    [SYS_fork] "fork",
++    [SYS_exit] "exit",
++    [SYS_wait] "wait",
++    [SYS_pipe] "pipe",
++    [SYS_read] "read",
++    [SYS_kill] "kill",
++    [SYS_exec] "exec",
++    [SYS_fstat] "fstat",
++    [SYS_chdir] "chdir",
++    [SYS_dup] "dup",
++    [SYS_getpid] "getpid",
++    [SYS_sbrk] "sbrk",
++    [SYS_sleep] "sleep",
++    [SYS_uptime] "uptime",
++    [SYS_open] "open",
++    [SYS_write] "write",
++    [SYS_mknod] "mknod",
++    [SYS_unlink] "unlink",
++    [SYS_link] "link",
++    [SYS_mkdir] "mkdir",
++    [SYS_close] "close",
++    [SYS_trace] "trace",
++    [SYS_info] "info",
++    [SYS_set_last_user_command] "set_last_user_command",
++    [SYS_get_last_user_command] "get_last_user_command",
++    [SYS_get_last_ith_user_command] "get_last_ith_user_command",
++    [SYS_set_last_ith_user_command] "set_last_ith_user_command",
++};
++
++void syscall(void)
+ {
+   int num;
++  int tracedid;
+   struct proc *p = myproc();
+ 
+   num = p->trapframe->a7;
+-  if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
++  tracedid = p->istraced;
++  
++  acquire(&p->lock);
++  int parent=p->pid;
++  release(&p->lock);
++
++  // printf("\n%d\t%d\n",tracedid,num);
++  if (num > 0 && num < NELEM(syscalls) && syscalls[num])
++  {
+     // Use num to lookup the system call function for num, call it,
+     // and store its return value in p->trapframe->a0
+-    p->trapframe->a0 = syscalls[num]();
+-  } else {
++    
++
++    // get the current procedure and check this has the same number as traced procedure
++    if (tracedid == num)
++    {
++      // emon hote pare proc syscall kortese kintu nije syscall na;
++      printf("pid: %d, syscall: %s, args: (", parent, syscall_functions[tracedid]);
++      int args1, args2, args3;
++      uint64 addr1;
++      // int sz = 100;
++      char str1[10];
++      char str2[10];
++      switch (tracedid)
++      {
++      case SYS_fork:
++        break;
++      case SYS_wait:
++        argaddr(0, &addr1);
++        // printf("%d, 0x%lx, %d", args1, args2, arg3);
++        printf("0x%lx", addr1);
++        break;
++      case SYS_pipe:
++        argaddr(0, &addr1);
++        printf("0x%lx", addr1);
++        break;
++      case SYS_write:
++        argint(0, &args1);
++        argaddr(1, &addr1);
++        argint(2, &args3);
++        printf("%d, 0x%lx, %d", args1, addr1, args3);
++        break;
++      case SYS_read:
++        argint(0, &args1);
++        argaddr(1, &addr1);
++        argint(2, &args3);
++        printf("%d, 0x%lx, %d", args1, addr1, args3);
++        break;
++
++      case SYS_close:
++        argint(0, &args1);
++        printf("%d", args1);
++        break;
++
++      case SYS_kill:
++        argint(0, &args1);
++        printf("%d", args1);
++        break;
++
++      case SYS_exec:
++        argstr(0, str1, sizeof(str1));
++        argaddr(1, &addr1);
++        printf("%s, 0x%lx", str1, addr1);
++        break;
++
++      case SYS_exit:
++        argint(0, &args1);
++        printf("%d", args1);
++        break;
++
++      case SYS_open:
++        argstr(0, str1, sizeof(str1));
++        argint(1, &args1);
++        printf("%s, %d", str1, args1);
++        break;
++
++      case SYS_mknod:
++        argstr(0, str1, sizeof(str1));
++        argint(1, &args1);
++        argint(2, &args2);
++        printf("%s, %d, %d", str1, args1, args2);
++        break;
++
++      case SYS_unlink:
++        argstr(0, str1, sizeof(str1));
++        printf("%s", str1);
++        break;
++
++      case SYS_fstat:
++        argint(0, &args1);
++        argaddr(1, &addr1);
++        printf("%d, 0x%lx", args1, addr1);
++        break;
++
++      case SYS_link:
++        argstr(0, str1, sizeof(str1));
++        argstr(1, str2, sizeof(str2));
++        printf("%s, %s", str1, str2);
++        break;
++
++      case SYS_mkdir:
++        argstr(0, str1, sizeof(str1));
++        printf("%s", str1);
++        break;
++
++      case SYS_chdir:
++        argstr(0, str1, sizeof(str1));
++        printf("%s", str1);
++        break;
++
++      case SYS_dup:
++
++        argint(0, &args1);
++        printf("%d", args1);
++        break;
++
++      case SYS_getpid:
++        break;
++
++      case SYS_sbrk:
++
++        argint(0, &args1);
++        printf("%d", args1);
++        break;
++
++      case SYS_sleep:
++        argint(0, &args1);
++        printf("%d", args1);
++        break;
++
++      case SYS_uptime:
++        printf("no arguments");
++        break;
++
++      case SYS_trace:
++        argint(0, &args1);
++        printf("%d", args1);
++        break;
++
++      case SYS_info:
++        argaddr(0, &addr1);
++        printf("0x%lx", addr1);
++        break;
++
++      default:
++        break;
++      }
++      p->trapframe->a0 = syscalls[num]();
++      int retval = p->trapframe->a0;
++      printf("), return: %d\n", retval);
++    }
++    else
++    {
++      p->trapframe->a0 = syscalls[num]();
++    }
++
++  }
++  else
++  {
+     printf("%d %s: unknown sys call %d\n",
+-            p->pid, p->name, num);
++           parent, p->name, num);
+     p->trapframe->a0 = -1;
+   }
+ }
+diff --git a/kernel/syscall.h b/kernel/syscall.h
+index bc5f356..13dc3b5 100644
+--- a/kernel/syscall.h
++++ b/kernel/syscall.h
+@@ -20,3 +20,9 @@
+ #define SYS_link   19
+ #define SYS_mkdir  20
+ #define SYS_close  21
++#define SYS_trace  22
++#define SYS_info 23
++#define SYS_set_last_user_command 24
++#define SYS_get_last_user_command 25
++#define SYS_set_last_ith_user_command 26
++#define SYS_get_last_ith_user_command 27
+diff --git a/kernel/sysproc.c b/kernel/sysproc.c
+index 3b4d5bd..f76895e 100644
+--- a/kernel/sysproc.c
++++ b/kernel/sysproc.c
+@@ -91,3 +91,16 @@ sys_uptime(void)
+   release(&tickslock);
+   return xticks;
+ }
++
++uint64
++sys_trace(void)
++{
++    int enabledtrace;
++    argint(0,&enabledtrace);
++    
++    myproc()->istraced = enabledtrace; // get the current procedure and add the traced procedure
++    //printf("\n%d\t%d\n",enabledtrace,myproc()->istraced);
++    return 0;
++}
++
++
+diff --git a/kernel/types.h b/kernel/types.h
+index ee73164..4f903cd 100644
+--- a/kernel/types.h
++++ b/kernel/types.h
+@@ -1,10 +1,18 @@
+-typedef unsigned int   uint;
++typedef unsigned int uint;
+ typedef unsigned short ushort;
+-typedef unsigned char  uchar;
++typedef unsigned char uchar;
+ 
+ typedef unsigned char uint8;
+ typedef unsigned short uint16;
+-typedef unsigned int  uint32;
++typedef unsigned int uint32;
+ typedef unsigned long uint64;
+ 
+ typedef uint64 pde_t;
++
++struct procInfo
++{
++    int activeProcess; // # of processes in RUNNABLE and RUNNING state
++    int totalProcess;  // # of total possible processes
++    int memsize;       // in bytes; summation of all active process
++    int totalMemSize;  // in bytes; all available physical Memory
++};
+\ No newline at end of file
+diff --git a/tmp.txt b/tmp.txt
+new file mode 100644
+index 0000000..e69de29
+diff --git a/user/load.c b/user/load.c
+new file mode 100644
+index 0000000..2ca220a
+--- /dev/null
++++ b/user/load.c
+@@ -0,0 +1,45 @@
++#include "../kernel/types.h"
++#include "./user.h"
++
++int main(int argc, char *argv[]){
++    
++    int childCount = atoi(argv[1]);
++    int allocationAmount = atoi(argv[2]);
++
++    printf("Parent going to sleep\n");
++
++    for(int i=0;i<childCount;i++){
++        int id=fork();
++        
++        if(id==0){
++            printf("Child is created\n");
++            char *tmp = malloc(allocationAmount);
++            if(tmp==0){
++                printf("Not allocated\n");
++            }else{
++                printf("Child allocated %d bytes.\n", allocationAmount);
++                printf("Child going to sleep.\n");
++            }
++            sleep(100*childCount+300);
++            return 0;
++        }else{
++            sleep(100); 
++        }
++        
++    }
++    sleep(100);
++
++    struct procInfo pInfo;
++    info(&pInfo);
++
++    printf("Parent wake up.\n");
++    printf("Current system information:\n");
++    printf("Processes: %d/%d\n", pInfo.activeProcess, pInfo.totalProcess);
++    printf("RAM: %d/%d (in KB)\n", pInfo.memsize / 1024, pInfo.totalMemSize / 1024);
++
++    // for (int i = 0; i < childCount; i++) {
++    while(wait(0)==0){};
++    
++
++    return 0;
++}
+diff --git a/user/sh.c b/user/sh.c
+index 836ebcb..e908bdb 100644
+--- a/user/sh.c
++++ b/user/sh.c
+@@ -3,6 +3,8 @@
+ #include "kernel/types.h"
+ #include "user/user.h"
+ #include "kernel/fcntl.h"
++// #include "user/ulib.c"
++
+ 
+ // Parsed command representation
+ #define EXEC  1
+@@ -12,6 +14,7 @@
+ #define BACK  5
+ 
+ #define MAXARGS 10
++#define MAX_COMMAND_LEN 128
+ 
+ struct cmd {
+   int type;
+@@ -142,6 +145,16 @@ getcmd(char *buf, int nbuf)
+   return 0;
+ }
+ 
++int
++strncmp_muhit(const char *p, const char *q, uint n)
++{
++  while(n > 0 && *p && *p == *q)
++    n--, p++, q++;
++  if(n == 0)
++    return 0;
++  return (uchar)*p - (uchar)*q;
++}
++
+ int
+ main(void)
+ {
+@@ -163,11 +176,43 @@ main(void)
+       buf[strlen(buf)-1] = 0;  // chop \n
+       if(chdir(buf+3) < 0)
+         fprintf(2, "cannot cd %s\n", buf+3);
++      
++      set_last_user_command(buf);
+       continue;
+     }
++    
++    if(strncmp_muhit(buf,"!! ",3)==0){
++      // printf("paisi\n");
++      int n=atoi(buf+3);
++      
++      char fetched_cmd[MAX_COMMAND_LEN];
++      if(get_last_ith_user_command(fetched_cmd,n)<0){
++        printf("No previous command\n");
++        continue;
++      }
++      // printf("%s\n",buf);
++      strcpy(buf,fetched_cmd);
++      printf("%s\n",fetched_cmd);
++    }else if(strncmp_muhit(buf,"!!",2)==0){
++      char fetched_cmd[MAX_COMMAND_LEN];
++      if(get_last_user_command(fetched_cmd)<0){
++        printf("No previous command\n");
++        continue;
++      }
++      // printf("%s\n",buf);
++      strcpy(buf,fetched_cmd);
++      printf("%s\n",fetched_cmd);
++    }
++    set_last_user_command(buf);
++    set_last_ith_user_command(buf);
++    
++    // parsecmd(buf);
++    
++
+     if(fork1() == 0)
+       runcmd(parsecmd(buf));
+     wait(0);
++    
+   }
+   exit(0);
+ }
+@@ -263,6 +308,8 @@ backcmd(struct cmd *subcmd)
+ char whitespace[] = " \t\r\n\v";
+ char symbols[] = "<|>&;()";
+ 
++
++
+ int
+ gettoken(char **ps, char *es, char **q, char **eq)
+ {
+diff --git a/user/trace.c b/user/trace.c
+new file mode 100755
+index 0000000..0d60fe1
+--- /dev/null
++++ b/user/trace.c
+@@ -0,0 +1,15 @@
++#include "../kernel/types.h"
++// #include "../kernel/syscall.h"
++#include "./user.h"
++
++int main(int argc,char *argv[]){
++
++    // for(int i=0;i<argc;i++){
++    //     printf("%d %s\n",i,argv[i]);
++    // }printf("\n");
++    int which=atoi(argv[1]);
++    // printf("%d",which);
++    trace(which);
++    exec(argv[2],&argv[2]);
++    return 0;
++}
+\ No newline at end of file
+diff --git a/user/ulib.c b/user/ulib.c
+index c7b66c4..70126ff 100644
+--- a/user/ulib.c
++++ b/user/ulib.c
+@@ -145,3 +145,4 @@ memcpy(void *dst, const void *src, uint n)
+ {
+   return memmove(dst, src, n);
+ }
++
+diff --git a/user/user.h b/user/user.h
+index 04013ca..f02fc6d 100644
+--- a/user/user.h
++++ b/user/user.h
+@@ -22,6 +22,13 @@ int getpid(void);
+ char* sbrk(int);
+ int sleep(int);
+ int uptime(void);
++void trace(int);
++void info(struct procInfo *);
++int get_last_user_command(char *my_address);
++int set_last_user_command(char* command_from_me);
++int set_last_ith_user_command(char *command_from_me);
++int get_last_ith_user_command(char *my_address,int index);
++
+ 
+ // ulib.c
+ int stat(const char*, struct stat*);
+diff --git a/user/usys.pl b/user/usys.pl
+index 01e426e..e5b20fb 100755
+--- a/user/usys.pl
++++ b/user/usys.pl
+@@ -36,3 +36,9 @@ entry("getpid");
+ entry("sbrk");
+ entry("sleep");
+ entry("uptime");
++entry("trace");
++entry("info");
++entry("get_last_user_command");
++entry("set_last_user_command");
++entry("get_last_ith_user_command");
++entry("set_last_ith_user_command");
+\ No newline at end of file
